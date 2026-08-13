@@ -1,0 +1,24 @@
+OneRead
+=======
+
+A compiler for technical English. Unofficial. Not a substitute for the
+standard.
+
+ASD-STE100, Simplified Technical English, is a copyright and a trademark of
+ASD, Brussels, Belgium. European Union Trade Mark No. 017966390. This project
+is not affiliated with, endorsed by, or certified by ASD or the ASD Simplified
+Technical English Maintenance Group (STEMG).
+
+No tool can guarantee ASD-STE100 compliance. Final approval rests with the
+writer. The official standard is a free download:
+
+    https://www.asd-ste100.org/
+
+This repository does not reproduce the official dictionary. The dictionary is
+copyrighted by ASD. OneRead enforces mechanical writing rules (sentence length,
+tense, voice, punctuation, filler, condition placement) and a one-word-one-
+meaning discipline. Full vocabulary compliance requires the official Issue 9
+dictionary.
+
+Mechanical rules, software genres, safety mapping, SARIF, ORIR, and emitters:
+Zorost Intelligence, 2026.

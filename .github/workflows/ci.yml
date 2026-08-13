@@ -1,0 +1,27 @@
+name: oneread
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install and self-test
+        run: |
+          python -m pip install -e .
+          python -m oneread.cli self-test
+      - name: Lint fixtures
+        run: python -m oneread.cli lint fixtures/slop/readme.md --type descriptive --report || true
+      - name: Emit SARIF from slop fixture
+        run: python -m oneread.cli emit fixtures/slop/readme.md --type descriptive --to sarif --out out
+      - name: Upload SARIF
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oneread-sarif
+          path: out/sarif.sarif

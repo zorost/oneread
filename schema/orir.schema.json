@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/zorost/oneread/schema/orir.schema.json",
+  "title": "OneRead Intermediate Representation",
+  "description": "A typed document produced by the OneRead compiler. Emitters read this object. They do not re-parse prose.",
+  "type": "object",
+  "required": ["orir", "passages", "lint", "disclaimer"],
+  "properties": {
+    "orir": { "const": "1.0" },
+    "source": { "type": "string" },
+    "default_type": { "enum": ["procedural", "descriptive"] },
+    "headings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["level", "text"],
+        "properties": {
+          "level": { "type": "integer", "minimum": 1, "maximum": 6 },
+          "text": { "type": "string" }
+        }
+      }
+    },
+    "passages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind"],
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "enum": ["procedural", "descriptive", "mixed", "protected"] },
+          "raw": { "type": "string" },
+          "sentences": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["text", "kind", "words", "limit"],
+              "properties": {
+                "text": { "type": "string" },
+                "kind": { "enum": ["procedural", "descriptive"] },
+                "words": { "type": "integer", "minimum": 0 },
+                "limit": { "type": "integer" },
+                "protected": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "lint": { "type": "object" },
+    "findings": { "type": "array" },
+    "disclaimer": { "type": "string" }
+  }
+}

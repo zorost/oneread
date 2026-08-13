@@ -1,0 +1,10 @@
+repos:
+  - repo: local
+    hooks:
+      - id: oneread
+        name: OneRead STE mechanical lint
+        entry: python -m oneread.cli lint
+        language: python
+        types: [markdown]
+        args: ["--type", "descriptive"]
+        pass_filenames: true

@@ -1,0 +1,1 @@
+sqlpipe is a comprehensive, robust command-line utility designed to help teams effortlessly move data from PostgreSQL into cloud object storage. By leveraging a simple YAML configuration, it streamlines snapshots and incremental updates, making it easy to operationalize your data lake without standing up a full ETL platform.

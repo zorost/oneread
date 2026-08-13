@@ -1,0 +1,1 @@
+You'll want to start by ensuring your environment is properly configured. sqlpipe can help you seamlessly sync Postgres tables to S3, and you should verify connectivity prior to running a full snapshot. It may take a few minutes depending on table size, e.g. large fact tables, etc. Please check the logs if anything looks off.

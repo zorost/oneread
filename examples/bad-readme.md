@@ -1,0 +1,1 @@
+sqlpipe is a comprehensive, robust command-line utility designed to help teams seamlessly sync Postgres to S3. You'll want to ensure your credentials are configured prior to running; otherwise an error may be returned, e.g. on RDS.

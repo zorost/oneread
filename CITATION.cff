@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+title: OneRead
+message: If you use this software, please cite it as below.
+type: software
+authors:
+  - family-names: Hashemi
+    given-names: Fereydon
+    affiliation: Zorost Intelligence
+  - name: Zorost Intelligence
+version: 1.0.0
+date-released: "2026-08-12"
+url: https://github.com/zorost/oneread
+license: MIT
+abstract: >
+  A compiler for technical English. Type-checks AI prose against ASD-STE100
+  Issue 9 mechanical rules, lowers it to OneRead IR, and emits it to docs,
+  OpenAPI, SARIF, skills, MCP, Slack, and aviation procedures.

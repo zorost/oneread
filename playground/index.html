@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OneRead · a compiler for technical English</title>
+  <meta name="description" content="Type-check AI prose against ASD-STE100 Issue 9, lower it to OneRead IR, emit it to docs, OpenAPI, SARIF, skills, MCP, Slack, and aviation procedures." />
+  <style>
+    /* Hallmark · pre-emit critique: P4 H5 E5 S4 R5 V4 */
+    /* Impeccable · mode: operate · layout + quieter + polish
+     * paper: ivory · accent: brass · display: grotesk-sans
+     */
+    :root {
+      --paper: #f4efe6;
+      --surface: #fffaf3;
+      --ink: #1c1814;
+      --mute: #5c5348;
+      --line: #d9cbb6;
+      --gold: #7a5410;
+      --gold-fill: #c9a227;
+      --error: #8b2a22;
+      --ok: #215c38;
+      --font: "Helvetica Neue", ui-sans-serif, system-ui, sans-serif;
+      --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      --s1: 4px;
+      --s2: 8px;
+      --s3: 12px;
+      --s4: 16px;
+      --s5: 24px;
+      --s6: 32px;
+      --s7: 48px;
+      --s8: 64px;
+      --shell: 1080px;
+      --pad: 24px;
+      --control: 40px;
+      --ease: cubic-bezier(0.16, 1, 0.3, 1);
+      --dur: 160ms;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { overflow-x: clip; }
+    html, body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 16px/1.5 var(--font);
+    }
+    a { color: var(--gold); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    a:hover { color: var(--ink); }
+    a:focus-visible, button:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 2px solid var(--ink);
+      outline-offset: 2px;
+    }
+    .shell {
+      width: min(var(--shell), calc(100% - var(--pad) * 2));
+      margin-inline: auto;
+    }
+    header {
+      border-bottom: 1px solid var(--line);
+      background: var(--paper);
+    }
+    .bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: stretch;
+      justify-content: space-between;
+      gap: var(--s2) var(--s5);
+      min-height: 56px;
+    }
+    .brand {
+      display: block;
+      padding-block: var(--s4);
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .brand span {
+      margin-left: var(--s2);
+      color: var(--mute);
+      font-size: 13px;
+      font-weight: 400;
+      letter-spacing: 0;
+    }
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0;
+      justify-content: flex-end;
+    }
+    nav button {
+      appearance: none;
+      background: none;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      color: var(--mute);
+      cursor: pointer;
+      font: 14px/1 var(--font);
+      min-height: 44px;
+      padding: 0 var(--s3);
+      margin: 0 0 -1px;
+    }
+    nav button[aria-selected="true"] {
+      color: var(--ink);
+      border-bottom-color: var(--gold);
+    }
+    nav button:hover { color: var(--ink); }
+    main { padding-block: var(--s7) var(--s8); }
+    .panel { display: none; }
+    .panel.on { display: block; }
+    h1 {
+      font-size: 32px;
+      font-weight: 600;
+      font-style: normal;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin: 0 0 var(--s3);
+      overflow-wrap: anywhere;
+    }
+    .sub {
+      color: var(--mute);
+      max-width: 62ch;
+      margin: 0 0 var(--s6);
+      font-size: 16px;
+    }
+    .hl { color: var(--gold); }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--s2);
+      margin-bottom: var(--s5);
+    }
+    select, .btn {
+      height: var(--control);
+      font: 14px/1 var(--font);
+      border-radius: 0;
+    }
+    select {
+      background: var(--surface);
+      color: var(--ink);
+      border: 1px solid var(--line);
+      padding: 0 var(--s3);
+      min-width: 12rem;
+    }
+    .btn {
+      appearance: none;
+      background: var(--gold-fill);
+      color: var(--ink);
+      border: 1px solid var(--gold-fill);
+      padding: 0 var(--s5);
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn:hover { filter: brightness(0.96); }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    .work {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: var(--s5) var(--s6);
+      align-items: stretch;
+    }
+    .pane {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-width: 0;
+      min-height: 0;
+    }
+    .label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      margin: 0 0 var(--s2);
+    }
+    textarea, .findings, pre {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      font: 13px/1.5 var(--mono);
+      padding: var(--s4);
+      margin: 0;
+    }
+    textarea {
+      width: 100%;
+      height: 100%;
+      min-height: 16rem;
+      resize: vertical;
+    }
+    .meters {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      border: 1px solid var(--line);
+      background: var(--surface);
+      margin: 0 0 var(--s5);
+    }
+    .meter {
+      padding: var(--s3) var(--s4);
+      border-right: 1px solid var(--line);
+    }
+    .meter:last-child { border-right: 0; }
+    .meter b {
+      display: block;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+    }
+    .meter span {
+      display: block;
+      margin-top: var(--s1);
+      font-size: 12px;
+      color: var(--mute);
+    }
+    .meter.bad b { color: var(--error); }
+    .meter.ok b { color: var(--ok); }
+    .findings {
+      min-height: 16rem;
+      height: 100%;
+      overflow: auto;
+    }
+    .findings .row {
+      display: grid;
+      grid-template-columns: 4.5rem minmax(0, 1fr);
+      gap: var(--s3);
+      padding: var(--s2) 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .findings .row:last-child { border-bottom: 0; }
+    .findings .rid {
+      color: var(--gold);
+      font-variant-numeric: tabular-nums;
+    }
+    .empty { color: var(--mute); }
+    .disc {
+      color: var(--mute);
+      font-size: 13px;
+      margin: var(--s3) 0 0;
+    }
+    .compiled { margin-top: var(--s5); }
+    pre {
+      white-space: pre-wrap;
+      overflow: auto;
+      min-height: 8rem;
+    }
+    .rules {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 0;
+      border-top: 1px solid var(--line);
+    }
+    .rule {
+      cursor: pointer;
+      padding: var(--s4) var(--s5) var(--s4) 0;
+      border-bottom: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+      min-width: 0;
+    }
+    .rule:nth-child(2n) { padding-right: 0; padding-left: var(--s5); border-right: 0; }
+    .rule-top {
+      display: grid;
+      grid-template-columns: 3.25rem minmax(0, 1fr) auto;
+      gap: var(--s3);
+      align-items: baseline;
+    }
+    .rule-id {
+      font-variant-numeric: tabular-nums;
+      color: var(--gold);
+      font-size: 13px;
+    }
+    .rule h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      font-style: normal;
+      letter-spacing: -0.02em;
+    }
+    .rule-sec { font-size: 12px; color: var(--mute); }
+    .rule-d {
+      margin: var(--s2) 0 0 3.25rem;
+      color: var(--mute);
+      font-size: 14px;
+    }
+    .ba {
+      display: none;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: var(--s4);
+      margin: var(--s3) 0 0 3.25rem;
+    }
+    .rule.open .ba { display: grid; }
+    .ba .col {
+      background: var(--surface);
+      padding: var(--s3);
+      font-size: 13px;
+    }
+    .ba .k {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--mute);
+      margin-bottom: var(--s1);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: var(--s3) var(--s4) var(--s3) 0;
+      border-bottom: 1px solid var(--line);
+    }
+    th {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--mute);
+    }
+    td:not(:first-child), th:not(:first-child) { width: 22%; }
+    .yes { color: var(--ok); font-weight: 600; }
+    .no { color: var(--mute); }
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: var(--s6);
+    }
+    .split article h2 {
+      font-size: 16px;
+      font-weight: 600;
+      font-style: normal;
+      margin: 0 0 var(--s2);
+    }
+    .split article p { margin: 0; color: var(--mute); }
+    .links { margin-top: var(--s6); }
+    .links a + a::before {
+      content: " · ";
+      color: var(--mute);
+      text-decoration: none;
+    }
+    footer {
+      margin-top: var(--s8);
+      padding-top: var(--s5);
+      border-top: 1px solid var(--line);
+      color: var(--mute);
+      font-size: 13px;
+      max-width: 72ch;
+    }
+    @media (max-width: 800px) {
+      h1 { font-size: 26px; }
+      .bar { flex-direction: column; align-items: stretch; }
+      .brand, nav { flex: 1 1 100%; }
+      nav { justify-content: flex-start; }
+      nav button { padding-inline: 0; margin-right: var(--s4); }
+      .work, .rules, .split, .ba, .meters { grid-template-columns: 1fr; }
+      .rule, .rule:nth-child(2n) { padding-left: 0; padding-right: 0; border-right: 0; }
+      .rule-d, .ba { margin-left: 0; }
+      .rule-top { grid-template-columns: 3.25rem minmax(0, 1fr); }
+      .rule-sec { grid-column: 2; }
+      .meter { border-right: 0; border-bottom: 1px solid var(--line); }
+      .meter:last-child { border-bottom: 0; }
+      .meters { grid-template-columns: 1fr 1fr; }
+      td:not(:first-child), th:not(:first-child) { width: auto; }
+      select { min-width: 0; flex: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .btn { transition: none; }
+      .btn:active { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="shell bar">
+      <a class="brand" href="./">OneRead <span>Zorost Intelligence</span></a>
+      <nav role="tablist" aria-label="Sections">
+        <button type="button" role="tab" aria-selected="true" aria-controls="play" data-tab="play">Playground</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="rules" data-tab="rules">53 rules</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="compare" data-tab="compare">Compare</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="emit" data-tab="emit">Emitters</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="why" data-tab="why">Why</button>
+      </nav>
+    </div>
+  </header>
+  <main class="shell">
+    <section id="play" class="panel on" role="tabpanel">
+      <h1>Paste AI prose. Watch it <span class="hl">fail a type check</span>.</h1>
+      <p class="sub">OneRead is a compiler for technical English, not a prompt. It type-checks against ASD-STE100 Issue 9 mechanical rules, then emits the same IR to docs, OpenAPI, SARIF, skills, MCP, Slack, and aviation procedures.</p>
+      <div class="toolbar">
+        <select id="genre" aria-label="Sample genre"></select>
+        <select id="kind" aria-label="Passage type">
+          <option value="descriptive">Descriptive, 25 words</option>
+          <option value="procedural">Procedural, 20 words</option>
+        </select>
+        <button class="btn" type="button" id="compileBtn">Compile</button>
+      </div>
+      <div class="meters" id="meters"></div>
+      <div class="work">
+        <div class="pane">
+          <p class="label" id="srcLabel">Input</p>
+          <textarea id="src" aria-labelledby="srcLabel"></textarea>
+        </div>
+        <div class="pane">
+          <p class="label">Mechanical findings</p>
+          <div class="findings" id="findings"></div>
+        </div>
+      </div>
+      <p class="disc">Regex, not a grammar parser. Not a compliance verdict. Official standard: <a href="https://www.asd-ste100.org/">asd-ste100.org</a>.</p>
+      <div class="compiled">
+        <p class="label">Compiled, mechanical subset</p>
+        <pre id="compiled">Press Compile. Contractions, filler, Latin abbreviations, semicolons, and courtesy words are rewritten. Sentence splits and voice still need a model or a human.</pre>
+      </div>
+    </section>
+
+    <section id="rules" class="panel" role="tabpanel" hidden>
+      <h1>Fifty-three rules. Click one.</h1>
+      <p class="sub">Paraphrased from ASD-STE100 Issue 9 with software examples. Issue 9 added no new rule numbers. It revised the wording of 31 rules. The official wording is in the free standard.</p>
+      <div class="toolbar">
+        <select id="sectionFilter" aria-label="Filter by section">
+          <option value="">All sections</option>
+        </select>
+      </div>
+      <div class="rules" id="ruleGrid"></div>
+    </section>
+
+    <section id="compare" class="panel" role="tabpanel" hidden>
+      <h1>A skill is a prompt. OneRead is a compiler.</h1>
+      <p class="sub">People have packaged STE as agent skills. A skill is still a prompt. The next call drifts. CI cannot fail a prompt. OneRead is the gate: parse, type-check, lower to ORIR, emit.</p>
+      <table>
+        <thead>
+          <tr><th>Capability</th><th>Agent skill (prompt)</th><th>OneRead (compiler)</th><th>Authoring checkers</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Agent skill / prompt</td><td class="yes">Yes</td><td class="yes">Yes, as an adapter</td><td class="no">No</td></tr>
+          <tr><td>Deterministic linter</td><td class="no">No</td><td class="yes">Yes, line-level</td><td class="yes">Yes, in the editor</td></tr>
+          <tr><td>Intermediate representation</td><td class="no">No</td><td class="yes">ORIR 1.0</td><td class="no">No</td></tr>
+          <tr><td>Emit to OpenAPI / SARIF / Slack / MCP / AMM</td><td class="no">No</td><td class="yes">Ten surfaces</td><td class="no">Usually one editor</td></tr>
+          <tr><td>GitHub Action + SARIF</td><td class="no">No</td><td class="yes">Yes</td><td class="no">Rare</td></tr>
+          <tr><td>MCP server</td><td class="no">No</td><td class="yes">Stdlib stdio</td><td class="no">No</td></tr>
+          <tr><td>Interactive rule explorer</td><td class="no">No</td><td class="yes">This page</td><td class="no">Vendor UI</td></tr>
+          <tr><td>Official dictionary</td><td class="no">Not reproduced</td><td class="no">Not reproduced</td><td class="yes">Often licensed</td></tr>
+          <tr><td>Certifies STE</td><td class="no">No</td><td class="no">No</td><td class="no">Still a human</td></tr>
+          <tr><td>CI can fail it</td><td class="no">No</td><td class="yes">lint exit 1</td><td class="no">Editor only</td></tr>
+        </tbody>
+      </table>
+      <p class="disc">A skill can look clean on a good call. The next call puts check, verify, and ensure back in. CI cannot fail a suggestion. OneRead fails the pull request.</p>
+    </section>
+
+    <section id="emit" class="panel" role="tabpanel" hidden>
+      <h1>Compile once. Ship to the surface you already use.</h1>
+      <p class="sub">ORIR is JSON. Emitters read ORIR. They do not re-parse prose. That is the LLVM idea, applied to technical English.</p>
+      <div class="toolbar">
+        <select id="emitter" aria-label="Emitter">
+          <option>markdown</option><option>sarif</option><option>slack</option>
+          <option>openapi</option><option>skill</option><option>mcp</option>
+          <option>rfc9457</option><option>amm</option><option>github</option><option>html</option>
+        </select>
+      </div>
+      <pre id="emitOut">Pick an emitter. Output is a preview of the Python emitters in src/oneread/emit.py, approximated in the browser.</pre>
+    </section>
+
+    <section id="why" class="panel" role="tabpanel" hidden>
+      <h1>STE exists so a tired mechanic cannot misread a step.</h1>
+      <p class="sub">ASD-STE100 Simplified Technical English is the controlled language aerospace and defense manufacturers use for maintenance documentation. Issue 9 is dated 15 January 2025. It is a free download from the STEMG site. It is an EU trademark of ASD. This playground is unofficial.</p>
+      <div class="split">
+        <article>
+          <h2>Why AI needs it</h2>
+          <p>Models rotate synonyms, hedge with should, may, and could, bury the condition after the command, and write 40-word sentences. A non-native on-call engineer at 02:00 reads that once. STE was designed for that reader. Agent instructions are the same job: a reader that cannot ask a question.</p>
+        </article>
+        <article>
+          <h2>Aviation, then AeroFarr</h2>
+          <p>STE was built for aircraft maintenance. OneRead emits an AMM-shaped procedure from the same IR you use for a README. The operational picture around that aircraft, delay, cascade, and safety-report retrieval, is a different product: <a href="https://aerofarr.com">AeroFarr</a>, Zorost's aviation intelligence platform. Calibrated disruption forecasts, causal explanation, network cascade, and a cited safety corpus. Live at aerofarr.com.</p>
+        </article>
+      </div>
+      <p class="links"><a href="https://github.com/zorost/oneread">GitHub repository</a><a href="https://zorost.com/oneread-compiler-for-technical-english/">Signals post</a><a href="https://www.asd-ste100.org/">Official standard</a></p>
+    </section>
+
+    <footer>
+      OneRead is unofficial and is not affiliated with ASD or STEMG. ASD-STE100 is a registered trademark of ASD, EU trade mark 017966390.
+      No tool can guarantee compliance. The skill adapter runs the compiler. It is not a substitute for one.
+      Zorost Intelligence · zorost.com
+    </footer>
+  </main>
+  <script src="linter.js"></script>
+  <script src="rules.js"></script>
+  <script>
+    const GENRES = {
+      "README (typical model slop)": `sqlpipe is a command-line tool for syncing PostgreSQL tables to Amazon S3 as Parquet files. It's built for teams who need a lightweight way to move data out of Postgres into a data lake without standing up a full ETL platform. Configuration lives in a single YAML file, making it easy to version-control your sync definitions.`,
+      "Error message": `Oops! Something went wrong while attempting to establish a connection to the database. Please ensure your credentials have been properly configured and try again.`,
+      "Runbook": `You'll want to grab the API key from the dashboard before configuring the client. If sqlpipe hangs, check that the host can reach the Postgres port — this is often a firewall rule.`,
+      "OpenAPI": `This endpoint allows you to seamlessly retrieve a user by ID, leveraging our robust lookup pipeline. You should ensure the ID is valid; otherwise an error may be returned.`,
+      "Incident": `We have identified an issue that may have impacted some users' ability to access the service. We sincerely apologize for any inconvenience this may have caused.`,
+      "Aviation procedure": `Prior to applying power, the technician should verify that the hydraulic lines have been properly connected, making sure there is no leakage, and/or that the reservoir is filled. See above.`,
+      "Agent prompt": `You should check the build, verify the tests, and ensure the configuration is valid before you deploy, making it easy to catch errors.`,
+      "GPT-shaped": `You'll want to start by ensuring your environment is properly configured. You should verify connectivity prior to running a full snapshot, e.g. large fact tables, etc.`,
+      "Gemini-shaped": `sqlpipe is a comprehensive, robust command-line utility designed to help teams effortlessly move data. By leveraging a simple YAML configuration, it streamlines snapshots.`,
+      "Kimi-shaped": `It is worth noting that sqlpipe could be used to sync tables, and we have attempted to make the process as smooth as possible. You might want to confirm your credentials.`
+    };
+
+    const src = document.getElementById("src");
+    const genre = document.getElementById("genre");
+    const kind = document.getElementById("kind");
+    Object.keys(GENRES).forEach((k) => {
+      const o = document.createElement("option");
+      o.value = k; o.textContent = k; genre.appendChild(o);
+    });
+    src.value = GENRES[genre.value];
+    genre.onchange = () => { src.value = GENRES[genre.value]; run(); };
+
+    function run() {
+      const report = OneRead.lint(src.value, kind.value);
+      const meters = document.getElementById("meters");
+      const items = [
+        ["Violations", report.violations_total],
+        ["Per 100 words", report.violations_per_100w],
+        ["Longest", report.longest],
+        ["Sentences", report.sentences],
+      ];
+      meters.innerHTML = items.map(([l, n]) => {
+        const bad = l === "Violations" ? n > 0 : l === "Longest" ? n > (kind.value === "procedural" ? 20 : 25) : false;
+        return `<div class="meter ${bad ? "bad" : "ok"}"><b>${n}</b><span>${l}</span></div>`;
+      }).join("");
+      const list = report.findings.slice(0, 40);
+      document.getElementById("findings").innerHTML = list.length
+        ? list.map((f) =>
+            `<div class="row"><span class="rid">${f.rule}</span><span>${f.key} · ${String(f.text).replace(/</g, "&lt;")}</span></div>`
+          ).join("")
+        : `<div class="empty">No mechanical findings.</div>`;
+    }
+    src.addEventListener("input", run);
+    kind.addEventListener("change", run);
+    document.getElementById("compileBtn").onclick = () => {
+      document.getElementById("compiled").textContent = OneRead.compile(src.value);
+    };
+    run();
+
+    document.querySelectorAll("nav button").forEach((btn) => {
+      btn.onclick = () => {
+        document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-selected", "false"));
+        btn.setAttribute("aria-selected", "true");
+        document.querySelectorAll(".panel").forEach((p) => {
+          const on = p.id === btn.dataset.tab;
+          p.classList.toggle("on", on);
+          p.hidden = !on;
+        });
+      };
+    });
+
+    const sections = [...new Set(ONEREAD_RULES.map((r) => r.s))];
+    const sf = document.getElementById("sectionFilter");
+    sections.forEach((s) => {
+      const o = document.createElement("option"); o.value = s; o.textContent = s; sf.appendChild(o);
+    });
+    function renderRules() {
+      const filter = sf.value;
+      const grid = document.getElementById("ruleGrid");
+      grid.innerHTML = ONEREAD_RULES.filter((r) => !filter || r.s === filter).map((r) => `
+        <article class="rule" data-id="${r.id}" tabindex="0">
+          <div class="rule-top">
+            <span class="rule-id">${r.id}</span>
+            <h3>${r.t}</h3>
+            <span class="rule-sec">${r.s}</span>
+          </div>
+          <p class="rule-d">${r.d}</p>
+          <div class="ba">
+            <div class="col"><span class="k">Before</span>${r.b}</div>
+            <div class="col"><span class="k">After</span>${r.a}</div>
+          </div>
+        </article>`).join("");
+      grid.querySelectorAll(".rule").forEach((el) => {
+        const toggle = () => el.classList.toggle("open");
+        el.onclick = toggle;
+        el.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } };
+      });
+    }
+    sf.onchange = renderRules;
+    renderRules();
+
+    const emitOut = document.getElementById("emitOut");
+    document.getElementById("emitter").onchange = function () {
+      const t = this.value;
+      const compiled = OneRead.compile(src.value);
+      const report = OneRead.lint(src.value, kind.value);
+      if (t === "sarif") {
+        emitOut.textContent = JSON.stringify({ version: "2.1.0", runs: [{ tool: { driver: { name: "OneRead" } }, results: report.findings.slice(0, 8).map((f) => ({ ruleId: f.rule, message: { text: f.key } })) }] }, null, 2);
+      } else if (t === "amm") {
+        emitOut.textContent = "TASK: (official AMM number)\n\nWARNING: Isolate the energy source before you open the unit. Live voltage can kill you.\n\nCAUTION: Do not apply power until the test in this task is complete.\n\nPROCEDURE:\n1. " + compiled.split(/(?<=[.!?])\s+/).filter(Boolean).join("\n2. ");
+      } else if (t === "openapi") {
+        emitOut.textContent = JSON.stringify({ summary: compiled.split(".")[0] + ".", description: compiled }, null, 2);
+      } else if (t === "rfc9457") {
+        emitOut.textContent = JSON.stringify({ type: "about:blank", title: compiled.split(".")[0] + ".", status: 400, detail: compiled }, null, 2);
+      } else if (t === "slack") {
+        emitOut.textContent = JSON.stringify({ blocks: [{ type: "header", text: { type: "plain_text", text: "OneRead runbook" } }, { type: "section", text: { type: "mrkdwn", text: compiled } }] }, null, 2);
+      } else {
+        emitOut.textContent = compiled;
+      }
+    };
+  </script>
+</body>
+</html>

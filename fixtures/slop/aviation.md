@@ -1,0 +1,1 @@
+Prior to applying power, the technician should verify that the hydraulic lines have been properly connected, making sure there is no leakage, and/or that the reservoir is filled. See above. Failure to do this could result in damage to the unit.

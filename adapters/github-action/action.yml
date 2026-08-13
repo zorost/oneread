@@ -1,0 +1,70 @@
+name: OneRead
+description: Type-check technical English against ASD-STE100 and emit SARIF.
+author: Zorost Intelligence
+branding:
+  icon: book-open
+  color: orange
+
+inputs:
+  path:
+    description: File or directory to lint
+    required: false
+    default: .
+  type:
+    description: procedural or descriptive
+    required: false
+    default: descriptive
+  fail-on-findings:
+    description: Fail the job when mechanical violations remain
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Run OneRead
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        ONEREAD_PATH: ${{ inputs.path }}
+        ONEREAD_TYPE: ${{ inputs.type }}
+        ONEREAD_FAIL: ${{ inputs.fail-on-findings }}
+      run: |
+        set -euo pipefail
+        python3 -m pip install -e "${{ github.action_path }}/../.." -q
+        python3 - <<'PY'
+        import os, sys
+        from pathlib import Path
+        from oneread.lint import lint
+        from oneread.emit import emit
+        from oneread.ir import to_ir
+
+        root = Path(os.environ.get("ONEREAD_PATH", "."))
+        text_type = os.environ.get("ONEREAD_TYPE", "descriptive")
+        fail = os.environ.get("ONEREAD_FAIL", "true").lower() == "true"
+        files = []
+        if root.is_file():
+            files = [root]
+        else:
+            files = [p for p in root.rglob("*") if p.suffix.lower() in {".md", ".txt", ".rst"} and "node_modules" not in p.parts]
+        total = 0
+        findings = []
+        bodies = []
+        for f in files:
+            text = f.read_text(encoding="utf-8", errors="replace")
+            result = lint(text, text_type)
+            total += result["violations_total"]
+            ir = to_ir(text, text_type, source=str(f))
+            ir["findings"] = result["findings"]
+            bodies.append(ir)
+            for hit in result["findings"]:
+                line = int(hit.get("line") or 1)
+                msg = f"{hit.get('rule')}: {hit.get('text','')[:120]}".replace("\n", " ")
+                print(f"::warning file={f},line={line}::{msg}")
+        sarif = emit("sarif", ir=bodies[0] if bodies else to_ir("", text_type), source=str(root))
+        Path("oneread.sarif").write_text(sarif, encoding="utf-8")
+        print(f"OneRead mechanical findings: {total}")
+        print("Unofficial. No tool can guarantee ASD-STE100 compliance.")
+        if fail and total:
+            sys.exit(1)
+        PY

@@ -1,0 +1,1 @@
+It is worth noting that sqlpipe could be used to sync tables, and we have attempted to make the process as smooth as possible. You might want to confirm your credentials; the tool should then take care of the rest, allowing you to focus on higher-level work.
