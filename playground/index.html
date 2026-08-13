@@ -606,9 +606,10 @@
           }).join("")
         : `<div class="empty">No mechanical findings. A clean type check is not a compliance verdict.</div>`;
       const hidden = report.findings.length - list.length;
+      const words = `${report.words} word${report.words === 1 ? "" : "s"}`;
       document.getElementById("tally").innerHTML = report.findings.length
-        ? `<b>${report.findings.length}</b> findings${hidden > 0 ? `, ${hidden} not shown` : ""} · ${report.words} words`
-        : `${report.words} words`;
+        ? `<b>${report.findings.length}</b> finding${report.findings.length === 1 ? "" : "s"}${hidden > 0 ? `, ${hidden} not shown` : ""} · ${words}`
+        : words;
       if (compiledOnce) renderCompiled();
       renderEmit();
     }
