@@ -8,7 +8,8 @@ OneRead is a compiler. A change that cannot fail a test is not a change.
 4. Keep runtime dependencies at zero for `src/oneread/`.
 5. New emitters go in `src/oneread/emit.py` and in the `EMITTERS` tuple.
 6. New mechanical rules go in `src/oneread/lint.py` and `playground/linter.js`
-   together. The playground is part of the product.
+   together. The playground is part of the product, and
+   `test_playground_mirrors_the_python_rules` fails the build when the two drift.
 7. Before/after fixtures live in `fixtures/slop/` and `fixtures/compiled/`.
 8. Do not add em dashes. House style and Rule 8.1 agree.
 

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>OneRead · a compiler for technical English</title>
   <meta name="description" content="Type-check AI prose against ASD-STE100 Issue 9, lower it to OneRead IR, emit it to docs, OpenAPI, SARIF, skills, MCP, Slack, and aviation procedures." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23f4efe6'/><text x='16' y='24' text-anchor='middle' font-family='Helvetica,Arial,sans-serif' font-size='22' font-weight='600' fill='%237a5410'>1</text></svg>" />
   <style>
     /* Hallmark · pre-emit critique: P4 H5 E5 S4 R5 V4 */
     /* Impeccable · mode: operate · layout + quieter + polish
@@ -120,9 +121,10 @@
     }
     .sub {
       color: var(--mute);
-      max-width: 62ch;
       margin: 0 0 var(--s6);
-      font-size: 16px;
+      font-size: 17px;
+      line-height: 1.55;
+      text-wrap: pretty;
     }
     .hl { color: var(--gold); }
     .toolbar {
@@ -131,6 +133,12 @@
       align-items: center;
       gap: var(--s2);
       margin-bottom: var(--s5);
+    }
+    .hint {
+      margin: 0 0 0 auto;
+      color: var(--mute);
+      font-size: 13px;
+      text-align: right;
     }
     select, .btn {
       height: var(--control);
@@ -223,7 +231,7 @@
     }
     .findings .row {
       display: grid;
-      grid-template-columns: 4.5rem minmax(0, 1fr);
+      grid-template-columns: 4.5rem minmax(0, 1fr) 2.5rem;
       gap: var(--s3);
       padding: var(--s2) 0;
       border-bottom: 1px solid var(--line);
@@ -233,6 +241,12 @@
       color: var(--gold);
       font-variant-numeric: tabular-nums;
     }
+    .findings .ln {
+      color: var(--mute);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .findings .key { color: var(--mute); }
     .empty { color: var(--mute); }
     .disc {
       color: var(--mute);
@@ -240,10 +254,45 @@
       margin: var(--s3) 0 0;
     }
     .compiled { margin-top: var(--s5); }
+    .headrow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--s2) var(--s4);
+      margin-bottom: var(--s2);
+    }
+    .headrow .label { margin: 0; }
+    .tally {
+      font: 12px/1.4 var(--mono);
+      color: var(--mute);
+      font-variant-numeric: tabular-nums;
+    }
+    .tally b { color: var(--ink); font-weight: 600; }
+    .tally .down { color: var(--ok); font-weight: 600; }
+    .status {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: var(--s2) var(--s4);
+      border: 1px solid var(--line);
+      border-bottom: 0;
+      background: var(--paper);
+      padding: var(--s2) var(--s4);
+      font: 12px/1.5 var(--mono);
+      color: var(--mute);
+    }
+    .status .now { color: var(--ink); }
     pre {
       white-space: pre-wrap;
       overflow: auto;
       min-height: 8rem;
+    }
+    pre mark {
+      background: rgba(201, 162, 39, 0.32);
+      color: inherit;
+      padding: 0 1px;
+      border-bottom: 1px solid var(--gold);
     }
     .rules {
       display: grid;
@@ -324,8 +373,9 @@
     .split {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: var(--s6);
+      gap: var(--s6) var(--s6);
     }
+    .split article + article + article { padding-top: var(--s5); border-top: 1px solid var(--line); }
     .split article h2 {
       font-size: 16px;
       font-weight: 600;
@@ -340,13 +390,20 @@
       text-decoration: none;
     }
     footer {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--s2) var(--s5);
       margin-top: var(--s8);
       padding-top: var(--s5);
       border-top: 1px solid var(--line);
       color: var(--mute);
       font-size: 13px;
-      max-width: 72ch;
+      text-wrap: pretty;
     }
+    footer p { margin: 0; flex: 1 1 40ch; }
+    footer .mark { flex: 0 0 auto; white-space: nowrap; }
     @media (max-width: 800px) {
       h1 { font-size: 26px; }
       .bar { flex-direction: column; align-items: stretch; }
@@ -394,22 +451,30 @@
           <option value="procedural">Procedural, 20 words</option>
         </select>
         <button class="btn" type="button" id="compileBtn">Compile</button>
+        <p class="hint">Paste your own text. Nothing leaves this page.</p>
       </div>
-      <div class="meters" id="meters"></div>
+      <div class="meters" id="meters" aria-live="polite"></div>
       <div class="work">
         <div class="pane">
           <p class="label" id="srcLabel">Input</p>
           <textarea id="src" aria-labelledby="srcLabel"></textarea>
         </div>
         <div class="pane">
-          <p class="label">Mechanical findings</p>
-          <div class="findings" id="findings"></div>
+          <div class="headrow">
+            <p class="label">Mechanical findings</p>
+            <p class="tally" id="tally"></p>
+          </div>
+          <div class="findings" id="findings" aria-live="polite"></div>
         </div>
       </div>
       <p class="disc">Regex, not a grammar parser. Not a compliance verdict. Official standard: <a href="https://www.asd-ste100.org/">asd-ste100.org</a>.</p>
       <div class="compiled">
-        <p class="label">Compiled, mechanical subset</p>
-        <pre id="compiled">Press Compile. Contractions, filler, Latin abbreviations, semicolons, and courtesy words are rewritten. Sentence splits and voice still need a model or a human.</pre>
+        <div class="headrow">
+          <p class="label">Compiled, mechanical subset</p>
+          <p class="tally" id="delta"></p>
+        </div>
+        <div class="status" id="compileStatus"><span>Press Compile. The compiler rewrites only what it can prove.</span><span class="now">Voice, sentence splits, and modals are reported, never guessed.</span></div>
+        <pre id="compiled">The compiled text appears here with every rewritten span marked. A span that stays is a span the compiler refuses to invent.</pre>
       </div>
     </section>
 
@@ -420,6 +485,7 @@
         <select id="sectionFilter" aria-label="Filter by section">
           <option value="">All sections</option>
         </select>
+        <p class="hint" id="ruleCount"></p>
       </div>
       <div class="rules" id="ruleGrid"></div>
     </section>
@@ -449,15 +515,16 @@
 
     <section id="emit" class="panel" role="tabpanel" hidden>
       <h1>Compile once. Ship to the surface you already use.</h1>
-      <p class="sub">ORIR is JSON. Emitters read ORIR. They do not re-parse prose. That is the LLVM idea, applied to technical English.</p>
+      <p class="sub">ORIR is JSON. Emitters read ORIR. They do not re-parse prose. That is the LLVM idea, applied to technical English. Every preview below compiles the text that is in the Playground input right now, so a change there changes all ten surfaces at once.</p>
       <div class="toolbar">
         <select id="emitter" aria-label="Emitter">
           <option>markdown</option><option>sarif</option><option>slack</option>
           <option>openapi</option><option>skill</option><option>mcp</option>
           <option>rfc9457</option><option>amm</option><option>github</option><option>html</option>
         </select>
+        <p class="hint" id="emitNote"></p>
       </div>
-      <pre id="emitOut">Pick an emitter. Output is a preview of the Python emitters in src/oneread/emit.py, approximated in the browser.</pre>
+      <pre id="emitOut">Each preview follows the shape of the Python emitter in src/oneread/emit.py. Run the CLI for the artifact itself.</pre>
     </section>
 
     <section id="why" class="panel" role="tabpanel" hidden>
@@ -472,18 +539,25 @@
           <h2>Aviation, then AeroFarr</h2>
           <p>STE was built for aircraft maintenance. OneRead emits an AMM-shaped procedure from the same IR you use for a README. The operational picture around that aircraft, delay, cascade, and safety-report retrieval, is a different product: <a href="https://aerofarr.com">AeroFarr</a>, Zorost's aviation intelligence platform. Calibrated disruption forecasts, causal explanation, network cascade, and a cited safety corpus. Live at aerofarr.com.</p>
         </article>
+        <article>
+          <h2>What it refuses to do</h2>
+          <p>OneRead does not certify compliance, and it does not reproduce the ASD dictionary, which is licensed. It rewrites only what a rule can prove: contractions, filler, Latin abbreviations, punctuation, and wordy phrases. A sentence split, a voice change, and a banned modal are reported with a rule number and left alone. A compiler that guesses is a prompt with extra steps.</p>
+        </article>
+        <article>
+          <h2>Adopt it in an afternoon</h2>
+          <p>Install the package and run the lint command over your documentation directory. Add the GitHub Action to upload SARIF, and each finding appears in code scanning on the line that caused it. Point your agents at the skill adapter or the MCP server, so the same rules apply while the text is written, not after review.</p>
+        </article>
       </div>
       <p class="links"><a href="https://github.com/zorost/oneread">GitHub repository</a><a href="https://zorost.com/oneread-compiler-for-technical-english/">Signals post</a><a href="https://www.asd-ste100.org/">Official standard</a></p>
     </section>
 
     <footer>
-      OneRead is unofficial and is not affiliated with ASD or STEMG. ASD-STE100 is a registered trademark of ASD, EU trade mark 017966390.
-      No tool can guarantee compliance. The skill adapter runs the compiler. It is not a substitute for one.
-      Zorost Intelligence · zorost.com
+      <p>OneRead is unofficial and is not affiliated with ASD or STEMG. ASD-STE100 is a registered trademark of ASD, EU trade mark 017966390. No tool can guarantee compliance. The skill adapter runs the compiler. It is not a substitute for one.</p>
+      <p class="mark">Zorost Intelligence · <a href="https://zorost.com">zorost.com</a></p>
     </footer>
   </main>
-  <script src="linter.js"></script>
-  <script src="rules.js"></script>
+  <script src="linter.js?v=2"></script>
+  <script src="rules.js?v=2"></script>
   <script>
     const GENRES = {
       "README (typical model slop)": `sqlpipe is a command-line tool for syncing PostgreSQL tables to Amazon S3 as Parquet files. It's built for teams who need a lightweight way to move data out of Postgres into a data lake without standing up a full ETL platform. Configuration lives in a single YAML file, making it easy to version-control your sync definitions.`,
@@ -508,32 +582,69 @@
     src.value = GENRES[genre.value];
     genre.onchange = () => { src.value = GENRES[genre.value]; run(); };
 
+    const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    let compiledOnce = false;
+
     function run() {
       const report = OneRead.lint(src.value, kind.value);
+      const limit = OneRead.LIMITS[kind.value];
       const meters = document.getElementById("meters");
       const items = [
-        ["Violations", report.violations_total],
-        ["Per 100 words", report.violations_per_100w],
-        ["Longest", report.longest],
-        ["Sentences", report.sentences],
+        ["Violations", report.violations_total, report.violations_total > 0],
+        ["Per 100 words", report.violations_per_100w, report.violations_per_100w > 2],
+        ["Longest", report.longest, report.longest > limit],
+        ["Sentences", report.sentences, false],
       ];
-      meters.innerHTML = items.map(([l, n]) => {
-        const bad = l === "Violations" ? n > 0 : l === "Longest" ? n > (kind.value === "procedural" ? 20 : 25) : false;
-        return `<div class="meter ${bad ? "bad" : "ok"}"><b>${n}</b><span>${l}</span></div>`;
-      }).join("");
+      meters.innerHTML = items.map(([l, n, bad]) =>
+        `<div class="meter ${bad ? "bad" : "ok"}"><b>${n}</b><span>${l}</span></div>`
+      ).join("");
       const list = report.findings.slice(0, 40);
       document.getElementById("findings").innerHTML = list.length
-        ? list.map((f) =>
-            `<div class="row"><span class="rid">${f.rule}</span><span>${f.key} · ${String(f.text).replace(/</g, "&lt;")}</span></div>`
-          ).join("")
-        : `<div class="empty">No mechanical findings.</div>`;
+        ? list.map((f) => {
+            const extra = f.words ? ` · ${f.words} words, limit ${f.limit}` : "";
+            return `<div class="row"><span class="rid">${f.rule}</span><span><span class="key">${f.key}</span> · ${esc(f.text)}${extra}</span><span class="ln">L${f.line}</span></div>`;
+          }).join("")
+        : `<div class="empty">No mechanical findings. A clean type check is not a compliance verdict.</div>`;
+      const hidden = report.findings.length - list.length;
+      document.getElementById("tally").innerHTML = report.findings.length
+        ? `<b>${report.findings.length}</b> findings${hidden > 0 ? `, ${hidden} not shown` : ""} · ${report.words} words`
+        : `${report.words} words`;
+      if (compiledOnce) renderCompiled();
+      renderEmit();
     }
+
+    function renderCompiled() {
+      const c = OneRead.compile(src.value, kind.value);
+      document.getElementById("compiled").innerHTML = esc(c.marked)
+        .split(OneRead.MARK_IN).join("<mark>")
+        .split(OneRead.MARK_OUT).join("</mark>");
+      const seen = [];
+      c.rewrites.forEach((r) => {
+        const line = `${r.from.toLowerCase()} → ${r.to || "deleted"}`;
+        if (seen.indexOf(line) === -1) seen.push(line);
+      });
+      const n = c.rewrites.length;
+      const left = n
+        ? `${n} proved rewrite${n === 1 ? "" : "s"} · ${seen.slice(0, 5).join(" · ")}${seen.length > 5 ? " · …" : ""}`
+        : "No rewrite can be proved for this text. Nothing was invented.";
+      const residual = Object.keys(c.after.violations)
+        .filter((k) => c.after.violations[k])
+        .map((k) => `${k} ${OneRead.RULE_IDS[k]}`);
+      const needs = residual.length ? residual.join(", ") : "nothing";
+      document.getElementById("compileStatus").innerHTML =
+        `<span>${esc(left)}</span><span class="now">Still needs a model or a human: ${esc(needs)}</span>`;
+      const before = c.before.violations_total;
+      const after = c.after.violations_total;
+      document.getElementById("delta").innerHTML =
+        `violations <b>${before}</b> → <b class="${after < before ? "down" : ""}">${after}</b>`;
+    }
+
     src.addEventListener("input", run);
     kind.addEventListener("change", run);
     document.getElementById("compileBtn").onclick = () => {
-      document.getElementById("compiled").textContent = OneRead.compile(src.value);
+      compiledOnce = true;
+      renderCompiled();
     };
-    run();
 
     document.querySelectorAll("nav button").forEach((btn) => {
       btn.onclick = () => {
@@ -555,8 +666,12 @@
     function renderRules() {
       const filter = sf.value;
       const grid = document.getElementById("ruleGrid");
-      grid.innerHTML = ONEREAD_RULES.filter((r) => !filter || r.s === filter).map((r) => `
-        <article class="rule" data-id="${r.id}" tabindex="0">
+      const shown = ONEREAD_RULES.filter((r) => !filter || r.s === filter);
+      document.getElementById("ruleCount").textContent = filter
+        ? `${shown.length} of ${ONEREAD_RULES.length} rules · ${filter}`
+        : `${ONEREAD_RULES.length} rules · ${sections.length} sections · click a rule for before and after`;
+      grid.innerHTML = shown.map((r) => `
+        <article class="rule" data-id="${r.id}" tabindex="0" role="button" aria-expanded="false">
           <div class="rule-top">
             <span class="rule-id">${r.id}</span>
             <h3>${r.t}</h3>
@@ -569,7 +684,7 @@
           </div>
         </article>`).join("");
       grid.querySelectorAll(".rule").forEach((el) => {
-        const toggle = () => el.classList.toggle("open");
+        const toggle = () => el.setAttribute("aria-expanded", String(el.classList.toggle("open")));
         el.onclick = toggle;
         el.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } };
       });
@@ -577,25 +692,119 @@
     sf.onchange = renderRules;
     renderRules();
 
+    /* Previews of src/oneread/emit.py. Every emitter reads the same IR, so every
+       emitter here reads the same compiled text and the same findings. */
     const emitOut = document.getElementById("emitOut");
-    document.getElementById("emitter").onchange = function () {
-      const t = this.value;
-      const compiled = OneRead.compile(src.value);
-      const report = OneRead.lint(src.value, kind.value);
-      if (t === "sarif") {
-        emitOut.textContent = JSON.stringify({ version: "2.1.0", runs: [{ tool: { driver: { name: "OneRead" } }, results: report.findings.slice(0, 8).map((f) => ({ ruleId: f.rule, message: { text: f.key } })) }] }, null, 2);
-      } else if (t === "amm") {
-        emitOut.textContent = "TASK: (official AMM number)\n\nWARNING: Isolate the energy source before you open the unit. Live voltage can kill you.\n\nCAUTION: Do not apply power until the test in this task is complete.\n\nPROCEDURE:\n1. " + compiled.split(/(?<=[.!?])\s+/).filter(Boolean).join("\n2. ");
-      } else if (t === "openapi") {
-        emitOut.textContent = JSON.stringify({ summary: compiled.split(".")[0] + ".", description: compiled }, null, 2);
-      } else if (t === "rfc9457") {
-        emitOut.textContent = JSON.stringify({ type: "about:blank", title: compiled.split(".")[0] + ".", status: 400, detail: compiled }, null, 2);
-      } else if (t === "slack") {
-        emitOut.textContent = JSON.stringify({ blocks: [{ type: "header", text: { type: "plain_text", text: "OneRead runbook" } }, { type: "section", text: { type: "mrkdwn", text: compiled } }] }, null, 2);
-      } else {
-        emitOut.textContent = compiled;
+    const emitter = document.getElementById("emitter");
+
+    function emitPreview(target) {
+      const c = OneRead.compile(src.value, kind.value);
+      const sents = c.text.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+      const steps = kind.value === "procedural" && sents.length > 1;
+      const findings = c.before.findings;
+      const note = `\n\n---\nOneRead residual findings: ${c.after.violations_total}. `
+        + "No tool can guarantee ASD-STE100 compliance. "
+        + "Official standard: https://www.asd-ste100.org/\n";
+      const body = steps ? sents.map((s, i) => `${i + 1}. ${s}`).join("\n") : sents.join(" ");
+      if (target === "markdown") return body + note;
+      if (target === "skill") {
+        return "---\nname: oneread-output\ndescription: Procedure compiled by OneRead from ASD-STE100 mechanical rules.\n---\n\n" + body + note;
       }
+      if (target === "html") {
+        const inner = steps
+          ? "<ol>" + sents.map((s) => `<li>${esc(s)}</li>`).join("") + "</ol>"
+          : `<p>${esc(sents.join(" "))}</p>`;
+        return "<article class='oneread'>\n" + inner + "\n</article>";
+      }
+      if (target === "github") {
+        return findings.length
+          ? findings.map((f) => `::warning file=input.md,line=${f.line}::${f.rule}: ${String(f.text).slice(0, 120).replace(/\n/g, " ")}`).join("\n")
+          : "::notice::OneRead found no mechanical STE violations.";
+      }
+      if (target === "sarif") {
+        return JSON.stringify({
+          version: "2.1.0",
+          $schema: "https://json.schemastore.org/sarif-2.1.0.json",
+          runs: [{
+            tool: { driver: { name: "OneRead", version: "1.0.0", informationUri: "https://github.com/zorost/oneread" } },
+            results: findings.slice(0, 12).map((f) => ({
+              ruleId: f.rule,
+              level: "warning",
+              message: { text: `${f.key}: ${String(f.text).slice(0, 160)}` },
+              locations: [{ physicalLocation: { artifactLocation: { uri: "input.md" }, region: { startLine: f.line } } }],
+            })),
+          }],
+        }, null, 2);
+      }
+      if (target === "slack") {
+        return JSON.stringify({
+          blocks: [{ type: "header", text: { type: "plain_text", text: "OneRead runbook" } }]
+            .concat(sents.map((s, i) => ({ type: "section", text: { type: "mrkdwn", text: `*${i + 1}.* ${s}` } })))
+            .concat([{ type: "context", elements: [{ type: "mrkdwn", text: `Residual findings: ${c.after.violations_total}. Unofficial. asd-ste100.org` }] }]),
+        }, null, 2);
+      }
+      if (target === "openapi") {
+        let summary = sents[0] || "";
+        if (summary.split(/\s+/).length > 25) summary = summary.split(/\s+/).slice(0, 24).join(" ") + ".";
+        return JSON.stringify({ summary: summary, description: sents.join("\n\n") }, null, 2);
+      }
+      if (target === "mcp") {
+        return JSON.stringify({
+          name: "oneread_procedure",
+          description: sents.slice(0, 4).join(" ").slice(0, 1024),
+          inputSchema: {
+            type: "object",
+            properties: { target: { type: "string", description: "The object this procedure acts on." } },
+            required: ["target"],
+          },
+        }, null, 2);
+      }
+      if (target === "rfc9457") {
+        return JSON.stringify({
+          type: "about:blank",
+          title: (sents[0] || "The request failed.").slice(0, 120),
+          status: 400,
+          detail: sents.length > 1 ? sents.slice(1, 3).join(" ") : (sents[0] || ""),
+        }, null, 2);
+      }
+      return [
+        "TASK: (give the official task number from the AMM)",
+        "",
+        "WARNING: Isolate the energy source before you open the unit. Live voltage can kill you.",
+        "",
+        "CAUTION: Do not apply power until the test in this task is complete. Wrong power can damage the unit.",
+        "",
+        "PROCEDURE:",
+      ].concat(sents.map((s, i) => `${i + 1}. ${s}`)).concat([
+        "",
+        "NOTE: A note gives information. It does not give a command.",
+        "",
+        "RESULT: The unit operates in the specified condition.",
+        "",
+        "OneRead cannot certify an AMM page. Use the official ASD-STE100 dictionary",
+        "and the manufacturer publication spec. https://www.asd-ste100.org/",
+      ]).join("\n");
+    }
+
+    const EMIT_NOTE = {
+      markdown: "Numbered steps or prose, plus the residual count.",
+      html: "Semantic article markup for a docs site.",
+      sarif: "Static analysis format. GitHub code scanning reads it.",
+      github: "Workflow annotations, on the line that caused them.",
+      slack: "Block Kit payload for an incident channel.",
+      openapi: "Summary and description for an operation object.",
+      skill: "Agent skill with front matter. It runs the compiler.",
+      mcp: "Tool descriptor for an MCP server.",
+      rfc9457: "Problem details for an HTTP error body.",
+      amm: "Aviation maintenance skeleton. STE was built for this page.",
     };
+
+    function renderEmit() {
+      emitOut.textContent = emitPreview(emitter.value);
+      document.getElementById("emitNote").textContent = EMIT_NOTE[emitter.value] || "";
+    }
+    emitter.onchange = renderEmit;
+    run();
   </script>
 </body>
 </html>

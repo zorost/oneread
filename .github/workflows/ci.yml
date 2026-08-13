@@ -13,8 +13,10 @@ jobs:
           python-version: "3.12"
       - name: Install and self-test
         run: |
-          python -m pip install -e .
+          python -m pip install -e . pytest
           python -m oneread.cli self-test
+      - name: Tests
+        run: python -m pytest tests -q
       - name: Lint fixtures
         run: python -m oneread.cli lint fixtures/slop/readme.md --type descriptive --report || true
       - name: Emit SARIF from slop fixture

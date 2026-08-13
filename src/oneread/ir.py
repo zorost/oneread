@@ -45,7 +45,6 @@ def to_ir(text: str, text_type: str = "descriptive", source: str = "") -> dict[s
     if text_type not in LIMITS:
         raise ValueError(f"unknown type {text_type!r}")
     report = lint(text, text_type)
-    body = strip_code(text)
     passages: list[dict[str, Any]] = []
     blocks = re.split(r"\n\s*\n", text.strip()) if text.strip() else []
     for i, block in enumerate(blocks, 1):

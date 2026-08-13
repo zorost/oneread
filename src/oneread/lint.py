@@ -39,7 +39,8 @@ COURTESY = re.compile(r"\b(please|oops|kindly|feel free)\b", re.I)
 ANDOR = re.compile(r"\band/or\b", re.I)
 WORDY = re.compile(
     r"\b(in order to|prior to|in the event that|due to the fact that|as well as|"
-    r"you'll want to|we recommend|please note|it should be noted)\b",
+    r"you'll want to|we recommend|please note|it should be noted|"
+    r"it is worth noting|worth noting that)\b",
     re.I,
 )
 PHRASAL = re.compile(
@@ -128,12 +129,21 @@ def word_count(sentence: str) -> int:
     return len(normalize_for_count(sentence).split())
 
 
-def paragraph_over_limit(text: str) -> int:
-    over = 0
+def paragraph_offenders(text: str) -> list[tuple[int, int]]:
+    """Return (offset, sentence count) for each paragraph above the six-sentence limit."""
+    out: list[tuple[int, int]] = []
+    pos = 0
     for block in re.split(r"\n\s*\n", text):
-        if len(sentences(block)) > 6:
-            over += 1
-    return over
+        idx = max(text.find(block, pos) if block else pos, 0)
+        n = len(sentences(block))
+        if n > 6:
+            out.append((idx, n))
+        pos = idx + len(block)
+    return out
+
+
+def paragraph_over_limit(text: str) -> int:
+    return len(paragraph_offenders(text))
 
 
 def _line_of(text: str, idx: int) -> int:
@@ -194,6 +204,15 @@ def findings(text: str, text_type: str) -> list[dict[str, Any]]:
                     "line": 1,
                 }
             )
+    for idx, n in paragraph_offenders(body):
+        out.append(
+            {
+                "rule": RULE_IDS["paragraph_over_six"],
+                "key": "paragraph_over_six",
+                "text": f"{n} sentences in one paragraph (limit 6)",
+                "line": _line_of(body, idx),
+            }
+        )
     out.sort(key=lambda f: (f.get("line", 0), f.get("key", "")))
     return out
 
